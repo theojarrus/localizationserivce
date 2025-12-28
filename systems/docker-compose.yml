@@ -1,0 +1,54 @@
+version: "3.9"
+
+services:
+
+  dtrack-db:
+    image: postgres:15
+    container_name: dtrack-db
+    environment:
+      POSTGRES_USER: dtrack
+      POSTGRES_PASSWORD: dtrack
+      POSTGRES_DB: dtrack
+    volumes:
+      - dtrack-db-data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  dependency-track-apiserver:
+    image: dependencytrack/apiserver:4.9.1
+    container_name: dtrack-apiserver
+    depends_on:
+      - dtrack-db
+    environment:
+      ALPINE_DATABASE_MODE: external
+      ALPINE_DATABASE_URL: jdbc:postgresql://dtrack-db:5432/dtrack
+      ALPINE_DATABASE_DRIVER: org.postgresql.Driver
+      ALPINE_DATABASE_USERNAME: dtrack
+      ALPINE_DATABASE_PASSWORD: dtrack
+    ports:
+      - "8081:8080"
+    restart: unless-stopped
+
+  dependency-track-frontend:
+    image: dependencytrack/frontend:4.9.1
+    container_name: dtrack-frontend
+    depends_on:
+      - dependency-track-apiserver
+    environment:
+      API_BASE_URL: http://localhost:8081
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
+  dependency-check:
+    image: owasp/dependency-check:latest
+    container_name: dependency-check
+    volumes:
+      - ./:/src
+    command: >
+      --project "localizationservice"
+      --scan /src
+      --format HTML
+      --out /src/dependency-check/reports
+
+volumes:
+  dtrack-db-data:

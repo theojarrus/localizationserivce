@@ -1,0 +1,34 @@
+stages:
+  - build
+  - security
+
+generate_sbom:
+  stage: build
+  image: gradle:8-jdk21
+  script:
+    - gradle cyclonedxBom
+  artifacts:
+    paths:
+      - build/reports/bom.json
+    expire_in: 1 week
+  rules:
+    - if: $CI_MERGE_REQUEST_ID
+
+dependency_check:
+  stage: security
+  image: owasp/dependency-check:latest
+  script:
+    - dependency-check.sh --scan . --format HTML --out reports
+  artifacts:
+    paths:
+      - reports
+    expire_in: 1 week
+  rules:
+    - if: $CI_MERGE_REQUEST_ID
+
+dependency_track:
+  stage: security
+  script:
+    - echo "Загрузка SBOM в Dependency Track"
+  rules:
+    - if: $CI_MERGE_REQUEST_ID
